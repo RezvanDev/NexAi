@@ -93,9 +93,14 @@ export default function ActiveCall({ callId, onEnd }: ActiveCallProps) {
 
     recognition.onend = () => {
       // Auto-restart unless muted or call ended
-      if (!isMuted) {
+      if (!isMuted && recognitionRef.current) {
         try {
-          recognition.start();
+          // Delay restart to prevent rapid abort/start loops
+          setTimeout(() => {
+            if (!isMuted && recognitionRef.current) {
+              recognitionRef.current.start();
+            }
+          }, 100);
         } catch (e) {
           // Ignore if already started
         }
