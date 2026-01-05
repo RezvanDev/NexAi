@@ -47,9 +47,9 @@ export async function registerRoutes(
   });
 
   // === AI CHAT FOR CALL ===
-  app.post(api.chat.post.path, async (req, res) => {
+  app.post(api.calls.chat.path, async (req, res) => {
     try {
-      const input = api.chat.post.input.parse(req.body);
+      const input = api.calls.chat.input.parse(req.body);
       
       const response = await openai.chat.completions.create({
         model: "gpt-5.1",

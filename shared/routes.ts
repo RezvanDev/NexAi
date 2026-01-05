@@ -23,9 +23,7 @@ export const api = {
         200: z.custom<typeof calls.$inferSelect>(),
       },
     },
-  },
-  chat: {
-    post: {
+    chat: {
       method: 'POST' as const,
       path: '/api/chat',
       input: z.object({
