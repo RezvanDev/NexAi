@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, AlertCircle } from "lucide-react";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
 import { CallControls } from "@/components/CallControls";
