@@ -7,6 +7,7 @@ import { z } from "zod";
 import { registerChatRoutes } from "./replit_integrations/chat";
 import { registerImageRoutes } from "./replit_integrations/image";
 import OpenAI from "openai";
+import { setupRealtime } from "./realtime";
 
 // Initialize OpenAI client for chat fallback
 const openai = new OpenAI({
@@ -18,9 +19,9 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Register integration routes
   registerChatRoutes(app);
   registerImageRoutes(app);
+  setupRealtime(httpServer);
 
   // === CALL LOGS ===
   app.post(api.calls.create.path, async (req, res) => {
@@ -50,13 +51,13 @@ export async function registerRoutes(
   app.post(api.calls.chat.path, async (req, res) => {
     try {
       const input = api.calls.chat.input.parse(req.body);
-      
+
       const response = await openai.chat.completions.create({
         model: "gpt-5.1",
         messages: [
-          { 
-            role: "system", 
-            content: "You are a helpful AI assistant in a voice call. Keep your responses concise and conversational, suitable for spoken output. Do not use markdown formatting like bold or lists, as this will be read by text-to-speech." 
+          {
+            role: "system",
+            content: "You are a helpful AI assistant in a voice call. Keep your responses concise and conversational, suitable for spoken output. Do not use markdown formatting like bold or lists, as this will be read by text-to-speech."
           },
           { role: "user", content: input.message }
         ],
