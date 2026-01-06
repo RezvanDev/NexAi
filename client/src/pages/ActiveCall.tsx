@@ -48,15 +48,15 @@ export default function ActiveCall({ callId, onEnd }: ActiveCallProps) {
         className="relative z-10 w-full max-w-md flex justify-between items-start"
       >
         <div className="flex flex-col">
-          <h3 className="text-white/60 text-sm font-medium tracking-wide">AI AGENT</h3>
-          <span className="text-white text-2xl font-display font-semibold">Realtime Voice</span>
+          <h3 className="text-white/60 text-sm font-medium tracking-wide">AI АГЕНТ</h3>
+          <span className="text-white text-2xl font-display font-semibold">Голосовой Агент</span>
           <span className="text-primary/80 font-mono mt-1">{formatTime(duration)}</span>
         </div>
 
         {!isConnected && (
           <div className="flex items-center gap-2 text-yellow-500 bg-yellow-500/10 px-3 py-1 rounded-full">
             <span className="animate-pulse w-2 h-2 rounded-full bg-current" />
-            <span className="text-xs">Connecting...</span>
+            <span className="text-xs">Подключение...</span>
           </div>
         )}
       </motion.div>

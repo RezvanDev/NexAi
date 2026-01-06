@@ -28,7 +28,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#0a0a0e] to-black text-foreground overflow-hidden">
-      
+
       {/* Background Ambience */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px] opacity-30 animate-pulse" />
@@ -58,9 +58,9 @@ export default function Home() {
             <header className="flex items-center justify-between py-4 mb-8">
               <div>
                 <h1 className="text-2xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
-                  AI Voice Agent
+                  AI Голосовой Агент
                 </h1>
-                <p className="text-sm text-muted-foreground">Always ready to chat</p>
+                <p className="text-sm text-muted-foreground">Всегда готов к общению</p>
               </div>
               <button className="p-2 rounded-full hover:bg-white/5 transition-colors">
                 <MoreVertical className="w-5 h-5 text-muted-foreground" />
@@ -69,9 +69,9 @@ export default function Home() {
 
             {/* Main Content */}
             <main className="flex-1 flex flex-col items-center justify-center space-y-12">
-              
+
               {/* Status Card */}
-              <motion.div 
+              <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 className="text-center space-y-2"
@@ -81,14 +81,14 @@ export default function Home() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                   </span>
-                  System Online
+                  Система Онлайн
                 </div>
                 <h2 className="text-4xl font-display font-bold tracking-tight">
-                  Hello, <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Guest User</span>
+                  Привет, <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Гость</span>
                 </h2>
                 <p className="text-muted-foreground max-w-[260px] mx-auto">
-                  Tap the button below to start a secure voice conversation with our AI assistant.
+                  Нажми кнопку ниже, чтобы начать безопасный голосовой чат с AI ассистентом.
                 </p>
               </motion.div>
 
@@ -111,23 +111,11 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Features List (Visual Filler) */}
-              <div className="grid grid-cols-2 gap-4 w-full">
-                <div className="glass-panel p-4 rounded-2xl flex flex-col items-center text-center gap-2 hover:bg-white/5 transition-colors cursor-default">
-                  <Sparkles className="w-6 h-6 text-accent mb-1" />
-                  <span className="text-sm font-medium">Smart Context</span>
-                </div>
-                <div className="glass-panel p-4 rounded-2xl flex flex-col items-center text-center gap-2 hover:bg-white/5 transition-colors cursor-default">
-                  <History className="w-6 h-6 text-pink-500 mb-1" />
-                  <span className="text-sm font-medium">Auto History</span>
-                </div>
-              </div>
-
             </main>
 
             {/* Footer */}
             <footer className="py-6 text-center text-xs text-muted-foreground/50">
-              <p>Powered by OpenAI & WebRTC</p>
+              <p>Работает на OpenAI & WebRTC</p>
             </footer>
           </motion.div>
         )}

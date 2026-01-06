@@ -101,7 +101,9 @@ export function useRealtime(onCallEnd?: () => void) {
                     break;
                 case "response.done":
                     // console.log("Response Done:", JSON.stringify(data.response, null, 2));
-                    setTranscript(prev => [...prev, `AI: ${data.transcript}`]);
+                    if (data.transcript) {
+                        setTranscript(prev => [...prev, `AI: ${data.transcript}`]);
+                    }
                     break;
                 case "input_audio_buffer.speech_started":
                     setIsListening(true);
@@ -111,7 +113,9 @@ export function useRealtime(onCallEnd?: () => void) {
                     setIsListening(false);
                     break;
                 case "conversation.item.input_audio_transcription.completed":
-                    setTranscript(prev => [...prev, `You: ${data.transcript}`]);
+                    if (data.transcript) {
+                        setTranscript(prev => [...prev, `You: ${data.transcript}`]);
+                    }
                     break;
                 case "call.end.request": // Custom server event
                 case "call.end": // Legacy support
