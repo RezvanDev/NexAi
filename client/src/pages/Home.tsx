@@ -2,28 +2,56 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, History, MoreVertical, Sparkles } from "lucide-react";
-import { useStartCall } from "@/hooks/use-calls";
+import { useStartCall, useCreateLead, useEndCall } from "@/hooks/use-calls";
 import ActiveCall from "./ActiveCall";
+import { LeadForm } from "@/components/LeadForm";
 
 export default function Home() {
   const [isInCall, setIsInCall] = useState(false);
+  const [showLeadForm, setShowLeadForm] = useState(false);
   const [callId, setCallId] = useState<number | null>(null);
+  const [leadName, setLeadName] = useState("");
+
   const startCallMutation = useStartCall();
+  const createLeadMutation = useCreateLead();
+  const endCallMutation = useEndCall();
   const [, setLocation] = useLocation();
 
-  const handleStartCall = async () => {
+  const handleLeadSubmit = async (data: { name: string; phone: string }) => {
     try {
-      const call = await startCallMutation.mutateAsync();
+      setLeadName(data.name);
+      // 1. Create Lead
+      const lead = await createLeadMutation.mutateAsync({ ...data });
+
+      // 2. Start Call (pass leadId)
+      // Note: useStartCall needs to be updated to accept leadId if we want to link it correctly!
+      // But for now, let's assume loose coupling or update useStartCall later.
+      // Wait, endpoint is POST /api/calls. Let's send leadId.
+      const call = await startCallMutation.mutateAsync({ leadId: lead.id });
       setCallId(call.id);
       setIsInCall(true);
+      setShowLeadForm(false);
     } catch (error) {
-      console.error("Failed to start call", error);
+      console.error("Failed to start sequence", error);
     }
   };
 
-  const handleEndCall = () => {
+  const handleEndCall = async (data: { duration: number; transcript: string }) => {
+    if (callId) {
+      try {
+        await endCallMutation.mutateAsync({
+          id: callId,
+          duration: data.duration,
+          transcript: data.transcript
+        });
+        console.log("Call saved successfully");
+      } catch (e) {
+        console.error("Failed to save call", e);
+      }
+    }
     setIsInCall(false);
     setCallId(null);
+    setLeadName("");
   };
 
   return (
@@ -44,7 +72,7 @@ export default function Home() {
             exit={{ opacity: 0, scale: 1.05 }}
             className="fixed inset-0 z-50"
           >
-            <ActiveCall callId={callId} onEnd={handleEndCall} />
+            <ActiveCall callId={callId} leadName={leadName} onEnd={handleEndCall} />
           </motion.div>
         ) : (
           <motion.div
@@ -70,46 +98,46 @@ export default function Home() {
             {/* Main Content */}
             <main className="flex-1 flex flex-col items-center justify-center space-y-12">
 
-              {/* Status Card */}
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                className="text-center space-y-2"
-              >
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium mb-4">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-                  </span>
-                  Система Онлайн
-                </div>
-                <h2 className="text-4xl font-display font-bold tracking-tight">
-                  Привет, <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Гость</span>
-                </h2>
-                <p className="text-muted-foreground max-w-[260px] mx-auto">
-                  Нажми кнопку ниже, чтобы начать безопасный голосовой чат с AI ассистентом.
-                </p>
-              </motion.div>
+              {!showLeadForm ? (
+                <>
+                  {/* Status Card */}
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="text-center space-y-2"
+                  >
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium mb-4">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                      </span>
+                      Система Онлайн
+                    </div>
+                    <h2 className="text-4xl font-display font-bold tracking-tight">
+                      Привет, <br />
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Гость</span>
+                    </h2>
+                    <p className="text-muted-foreground max-w-[260px] mx-auto">
+                      Нажми кнопку ниже, чтобы начать безопасный голосовой чат с AI ассистентом.
+                    </p>
+                  </motion.div>
 
-              {/* Call Button Container */}
-              <div className="relative group">
-                {/* Glow Effects */}
-                <div className="absolute inset-0 bg-primary/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-full blur-xl opacity-20 group-hover:opacity-40 animate-pulse transition-opacity duration-700" />
+                  {/* Call Button Container */}
+                  <div className="relative group">
+                    <div className="absolute inset-0 bg-primary/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-full blur-xl opacity-20 group-hover:opacity-40 animate-pulse transition-opacity duration-700" />
 
-                <button
-                  onClick={handleStartCall}
-                  disabled={startCallMutation.isPending}
-                  className="relative w-32 h-32 rounded-full bg-gradient-to-b from-primary to-primary/80 flex items-center justify-center shadow-[0_0_50px_rgba(124,58,237,0.4)] border-4 border-white/5 group-hover:scale-105 group-active:scale-95 transition-all duration-300"
-                >
-                  {startCallMutation.isPending ? (
-                    <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <Phone className="w-12 h-12 text-white fill-current" />
-                  )}
-                </button>
-              </div>
+                    <button
+                      onClick={() => setShowLeadForm(true)}
+                      className="relative w-32 h-32 rounded-full bg-gradient-to-b from-primary to-primary/80 flex items-center justify-center shadow-[0_0_50px_rgba(124,58,237,0.4)] border-4 border-white/5 group-hover:scale-105 group-active:scale-95 transition-all duration-300"
+                    >
+                      <Phone className="w-12 h-12 text-white fill-current" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <LeadForm onSubmit={handleLeadSubmit} isSubmitting={createLeadMutation.isPending || startCallMutation.isPending} />
+              )}
 
             </main>
 

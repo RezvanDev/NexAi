@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+            line-height: 1.6;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 280px;
+            height: 100vh;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.02);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 40px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+
+        .logo-text {
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-item {
+            padding: 14px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 15px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .nav-item:hover {
+            background: #f1f5f9;
+            color: #2563eb;
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .nav-icon {
+            font-size: 20px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .main-content {
+            margin-left: 280px;
+            padding: 40px;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .header-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .header-subtitle {
+            color: #64748b;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .search-bar {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px 20px;
+            width: 400px;
+            color: #0f172a;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .search-bar:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 28px;
+            transition: all 0.3s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-card:hover {
+            border-color: #2563eb;
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.15);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .stat-icon.blue {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            color: #2563eb;
+        }
+
+        .stat-icon.dark-blue {
+            background: linear-gradient(135deg, #1e40af, #1e3a8a);
+            color: white;
+        }
+
+        .stat-icon.light-blue {
+            background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+            color: #0284c7;
+        }
+
+        .stat-icon.navy {
+            background: linear-gradient(135deg, #334155, #1e293b);
+            color: white;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .stat-change {
+            font-size: 13px;
+            color: #2563eb;
+            font-weight: 500;
+        }
+
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        .table-container {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .table-header {
+            padding: 24px 28px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+        }
+
+        .table-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-tab {
+            padding: 8px 20px;
+            border-radius: 8px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-tab:hover {
+            background: #f1f5f9;
+            color: #2563eb;
+            border-color: #cbd5e1;
+        }
+
+        .filter-tab.active {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            border-color: #2563eb;
+            color: white;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f8fafc;
+        }
+
+        th {
+            padding: 18px 28px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        td {
+            padding: 24px 28px;
+            border-top: 1px solid #f1f5f9;
+            font-size: 14px;
+            color: #334155;
+        }
+
+        tr:hover td {
+            background: #f8fafc;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge.yes {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            color: white;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+        }
+
+        .status-badge.no {
+            background: #f1f5f9;
+            color: #64748b;
+            border: 2px solid #e2e8f0;
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .settings-grid {
+            display: grid;
+            gap: 24px;
+        }
+
+        .settings-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 36px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .settings-card-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        .settings-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 8px 16px rgba(37, 99, 235, 0.25);
+        }
+
+        .settings-card-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .settings-card-subtitle {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .form-group {
+            margin-bottom: 28px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .form-input,
+        .form-textarea {
+            width: 100%;
+            padding: 14px 18px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            color: #0f172a;
+            font-size: 14px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-textarea {
+            min-height: 200px;
+            resize: vertical;
+            line-height: 1.8;
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            color: white;
+            padding: 14px 32px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .current-settings {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 32px;
+        }
+
+        .current-settings h4 {
+            color: #0f172a;
+            margin-bottom: 20px;
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .current-settings p {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 12px;
+            line-height: 1.7;
+        }
+
+        .current-settings strong {
+            color: #0f172a;
+            font-weight: 700;
+        }
+
+        .prompt-display {
+            background: white;
+            border: 2px solid #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 16px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            color: #334155;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #94a3b8;
+        }
+
+        .empty-state-icon {
+            font-size: 56px;
+            margin-bottom: 20px;
+            opacity: 0.4;
+        }
+
+        .empty-state p {
+            font-size: 15px;
+            color: #64748b;
+        }
+
+        @media (max-width: 1400px) {
+            .stats-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 80px;
+                padding: 20px 12px;
+            }
+
+            .main-content {
+                margin-left: 80px;
+                padding: 20px;
+            }
+
+            .logo-text,
+            .nav-item span {
+                display: none;
+            }
+
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+
+            .search-bar {
+                width: 100%;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 20px;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">📞</div>
+            <div class="logo-text">CRM Pro</div>
+        </div>
+
+        <div class="nav-item active" onclick="switchView('dashboard')">
+            <span class="nav-icon">📊</span>
+            <span>Dashboard</span>
+        </div>
+
+        <div class="nav-item" onclick="switchView('calls')">
+            <span class="nav-icon">📞</span>
+            <span>Звонки</span>
+        </div>
+
+        <div class="nav-item" onclick="switchView('settings')">
+            <span class="nav-icon">⚙️</span>
+            <span>Настройки</span>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <!-- Dashboard -->
+        <div id="dashboard" class="content-section active">
+            <div class="header">
+                <div>
+                    <h1 class="header-title">Dashboard</h1>
+                    <p class="header-subtitle">Обзор активности за сегодня</p>
+                </div>
+                <input type="text" class="search-bar" placeholder="🔍 Поиск по звонкам..." id="searchInput">
+            </div>
+
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-label">Всего звонков</span>
+                        <div class="stat-icon blue">📞</div>
+                    </div>
+                    <div class="stat-value" id="totalCalls">0</div>
+                    <div class="stat-change">↑ За сегодня</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-label">Среднее время</span>
+                        <div class="stat-icon dark-blue">⏱️</div>
+                    </div>
+                    <div class="stat-value" id="avgDuration">0 <span style="font-size: 18px;">мин</span></div>
+                    <div class="stat-change">Средняя длительность</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-label">Требуют перезвона</span>
+                        <div class="stat-icon light-blue">🔔</div>
+                    </div>
+                    <div class="stat-value" id="callbackCount">0</div>
+                    <div class="stat-change">Активных задач</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-label">Общее время</span>
+                        <div class="stat-icon navy">📈</div>
+                    </div>
+                    <div class="stat-value" id="totalDuration">0 <span style="font-size: 18px;">мин</span></div>
+                    <div class="stat-change">Всего разговоров</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calls -->
+        <div id="calls" class="content-section">
+            <div class="header">
+                <div>
+                    <h1 class="header-title">Звонки</h1>
+                    <p class="header-subtitle">История всех обращений</p>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="table-header">
+                    <h3 class="table-title">Список звонков</h3>
+                    <div class="filter-tabs">
+                        <button class="filter-tab active" onclick="filterCalls('all')">Все</button>
+                        <button class="filter-tab" onclick="filterCalls('callback')">Перезвонить</button>
+                        <button class="filter-tab" onclick="filterCalls('completed')">Завершены</button>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Клиент</th>
+                            <th>Телефон</th>
+                            <th>Дата</th>
+                            <th>Интерес</th>
+                            <th>Время</th>
+                            <th>Перезвонить</th>
+                        </tr>
+                    </thead>
+                    <tbody id="callsTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div id="settings" class="content-section">
+            <div class="header">
+                <div>
+                    <h1 class="header-title">Настройки</h1>
+                    <p class="header-subtitle">Конфигурация AI агента</p>
+                </div>
+            </div>
+
+            <div class="settings-grid">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <div class="settings-icon">🤖</div>
+                        <div>
+                            <h3 class="settings-card-title">AI Агент</h3>
+                            <p class="settings-card-subtitle">Настройте личность и знания вашего помощника</p>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Название Компании</label>
+                        <input type="text" class="form-input" id="companyName" placeholder="Например: Моя Турфирма">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Имя Агента</label>
+                        <input type="text" class="form-input" id="agentName" placeholder="Например: Алиса">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Роль</label>
+                        <input type="text" class="form-input" id="agentRole"
+                            placeholder="Например: Менеджер по продажам">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Приветствие агента</label>
+                        <textarea class="form-textarea" id="agentGreeting"
+                            placeholder="Здравствуйте! Чем могу помочь?"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Фраза прощания / перевода на менеджера</label>
+                        <textarea class="form-textarea" id="agentTerminationPhrase"
+                            placeholder="Хорошо, менеджер свяжется с вами в ближайшее время. Всего доброго."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">База Знаний (Промпт)</label>
+                        <textarea class="form-textarea" id="agentPrompt"
+                            placeholder="Введите системную инструкцию для AI агента...&#10;&#10;Пример:&#10;Ты - опытный менеджер по продажам. Твоя задача - помогать клиентам с выбором продукта, отвечать на вопросы о ценах и условиях доставки. Всегда будь вежливым и профессиональным."></textarea>
+                        <p class="form-hint">* Этот текст будет использован как системная инструкция для LLM</p>
+                    </div>
+
+                    <button class="btn-primary" onclick="saveSettings()">💾 Сохранить настройки</button>
+
+                    <div class="current-settings" id="currentSettingsDisplay"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global State
+        let calls = [];
+        let settings = { agentName: '', agentRole: '', agentPrompt: '' };
+        let currentFilter = 'all';
+
+        // Initialize
+        window.onload = function () {
+            console.log('CRM Loaded. Fetching data...');
+            loadData();
+            // Initial render with empty/loading state if needed
+        };
+
+        async function loadData() {
+            try {
+                console.log('Fetching settings...');
+                const settingsRes = await fetch('/api/companies/1');
+                if (settingsRes.ok) {
+                    const company = await settingsRes.json();
+                    console.log('Settings fetched:', company);
+                    settings = {
+                        name: company.name || '',
+                        agentName: company.agentName || '',
+                        agentRole: company.agentRole || '',
+                        agentGreeting: company.agentGreeting || '',
+                        agentTerminationPhrase: company.agentTerminationPhrase || '',
+                        companyContext: company.companyContext || company.systemPrompt || ''
+                    };
+                } else {
+                    console.warn('Settings not found:', settingsRes.status);
+                }
+
+                const leadsRes = await fetch('/api/leads');
+                if (leadsRes.ok) {
+                    const leads = await leadsRes.json();
+                    calls = [];
+                    leads.forEach(lead => {
+                        if (lead.calls && Array.isArray(lead.calls)) {
+                            lead.calls.forEach(call => {
+                                calls.push({
+                                    id: call.id,
+                                    phone: lead.phone || 'Неизвестно',
+                                    name: lead.name || 'Без имени',
+                                    date: call.startedAt || new Date().toISOString(),
+                                    description: lead.email || '',
+                                    interest: call.summary || 'Нет данных',
+                                    duration: call.duration || 0,
+                                    callback: (call.status === 'missed' || (call.transcript && /перезвон|менеджер|связаться|человеком|оператор/i.test(call.transcript))) ? 'yes' : 'no'
+                                });
+                            });
+                        }
+                    });
+                    calls.sort((a, b) => new Date(b.date) - new Date(a.date));
+                }
+
+                displaySettings();
+                renderCalls();
+                updateStats();
+
+            } catch (error) {
+                console.error('Critical error loading data:', error);
+            }
+        }
+
+        function displaySettings() {
+            // Set input values
+            const nameEl = document.getElementById('companyName');
+            if (nameEl) nameEl.value = settings.name || '';
+
+            const agentNameEl = document.getElementById('agentName');
+            if (agentNameEl) agentNameEl.value = settings.agentName || '';
+
+            const agentRoleEl = document.getElementById('agentRole');
+            if (agentRoleEl) agentRoleEl.value = settings.agentRole || '';
+
+            const greetingEl = document.getElementById('agentGreeting');
+            if (greetingEl) greetingEl.value = settings.agentGreeting || '';
+
+            const termEl = document.getElementById('agentTerminationPhrase');
+            if (termEl) termEl.value = settings.agentTerminationPhrase || '';
+
+            const promptEl = document.getElementById('agentPrompt');
+            if (promptEl) promptEl.value = settings.companyContext || '';
+
+            // Update display card
+            const display = document.getElementById('currentSettingsDisplay');
+            if (!display) return;
+
+            if (settings.name || settings.agentName) {
+                display.innerHTML = `
+                    <h4>Текущая конфигурация:</h4>
+                    <p><strong>Компания:</strong> ${settings.name}</p>
+                    <p><strong>Агент:</strong> ${settings.agentName} (${settings.agentRole})</p>
+                    <p><strong>Приветствие:</strong> "${settings.agentGreeting || '...'}"</p>
+                    <div class="prompt-display">${settings.companyContext || ''}</div>
+                `;
+                display.style.display = 'block';
+            } else {
+                display.style.display = 'none';
+            }
+        }
+
+        async function saveSettings() {
+            const btn = document.querySelector('button[onclick="saveSettings()"]');
+            const originalText = btn ? btn.textContent : 'Save';
+            if (btn) btn.textContent = '⏳ Сохранение...';
+
+            try {
+                const newSettings = {
+                    name: document.getElementById('companyName').value,
+                    agentName: document.getElementById('agentName').value,
+                    agentRole: document.getElementById('agentRole').value,
+                    agentGreeting: document.getElementById('agentGreeting').value,
+                    agentTerminationPhrase: document.getElementById('agentTerminationPhrase').value,
+                    companyContext: document.getElementById('agentPrompt').value,
+                    systemPrompt: document.getElementById('agentPrompt').value // Ensure both updated
+                };
+
+                console.log('Saving settings:', newSettings);
+
+                // Check if exists
+                const checkRes = await fetch('/api/companies/1');
+                let method = 'PATCH';
+                let url = '/api/companies/1';
+                let body = newSettings;
+
+                if (checkRes.status === 404) {
+                    method = 'POST';
+                    url = '/api/companies';
+                    body = { id: 1, ...newSettings };
+                }
+
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                if (res.ok) {
+                    const saved = await res.json();
+                    console.log('Saved successfully:', saved);
+                    settings = {
+                        name: saved.name,
+                        agentName: saved.agentName,
+                        agentRole: saved.agentRole,
+                        agentGreeting: saved.agentGreeting,
+                        agentTerminationPhrase: saved.agentTerminationPhrase,
+                        companyContext: saved.companyContext || saved.systemPrompt
+                    };
+                    displaySettings();
+                    if (btn) btn.textContent = '✅ Сохранено!';
+                    alert('Настройки успешно сохранены!');
+                } else {
+                    throw new Error('Save failed');
+                }
+            } catch (error) {
+                console.error(error);
+                if (btn) btn.textContent = '❌ Ошибка';
+                alert('Ошибка при сохранении');
+            } finally {
+                setTimeout(() => {
+                    if (btn) btn.textContent = originalText;
+                }, 2000);
+            }
+        }
+
+
+        function updateStats() {
+            if (!calls) return;
+            const totalCallsEl = document.getElementById('totalCalls');
+            if (totalCallsEl) totalCallsEl.textContent = calls.length;
+
+            const totalDuration = calls.reduce((acc, call) => acc + (call.duration || 0), 0);
+            const avgDuration = calls.length ? Math.round(totalDuration / calls.length) : 0;
+
+            const avgEl = document.getElementById('avgDuration');
+            if (avgEl) avgEl.innerHTML = `${avgDuration} <span style="font-size: 18px;">мин</span>`;
+
+            const totalDurEl = document.getElementById('totalDuration');
+            if (totalDurEl) totalDurEl.innerHTML = `${Math.round(totalDuration)} <span style="font-size: 18px;">мин</span>`;
+
+            const callbackNeeded = calls.filter(c => c.callback === 'yes').length;
+            const cbEl = document.getElementById('callbackCount');
+            if (cbEl) cbEl.textContent = callbackNeeded;
+        }
+
+        function renderCalls() {
+            const tbody = document.getElementById('callsTable');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            let filteredCalls = calls;
+            if (currentFilter === 'callback') {
+                filteredCalls = calls.filter(c => c.callback === 'yes');
+            } else if (currentFilter === 'completed') {
+                filteredCalls = calls.filter(c => c.callback !== 'yes');
+            }
+
+            if (filteredCalls.length === 0) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td colspan="6" style="text-align:center; padding: 20px; color: #94a3b8;">Нет данных</td>`;
+                tbody.appendChild(tr);
+                return;
+            }
+
+            filteredCalls.forEach(call => {
+                const date = new Date(call.date);
+                const formattedDate = date.toLocaleDateString('ru-RU', {
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                });
+
+                let durationDisplay = '';
+                if (call.duration < 60) {
+                    durationDisplay = `${call.duration} сек`;
+                } else {
+                    const min = Math.floor(call.duration / 60);
+                    const sec = call.duration % 60;
+                    durationDisplay = `${min} мин ${sec} сек`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong style="color: #0f172a; font-weight: 600;">${call.name}</strong><br><span style="font-size: 13px; color: #64748b;">${call.description}</span></td>
+                    <td style="font-weight: 500; color: #2563eb;"><a href="tel:${call.phone}" style="color: inherit; text-decoration: none;">${call.phone}</a></td>
+                    <td style="color: #64748b;">${formattedDate}</td>
+                    <td>${call.interest}</td>
+                    <td style="font-weight: 600;">${durationDisplay}</td>
+                    <td><span class="status-badge ${call.callback}"><span class="dot"></span>${call.callback === 'yes' ? 'Да' : 'Нет'}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterCalls(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.textContent === (filter === 'all' ? 'Все' : filter === 'callback' ? 'Перезвонить' : 'Завершены')) {
+                    tab.classList.add('active');
+                }
+            });
+            renderCalls();
+        }
+
+        function switchView(view) {
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
+
+            if (event && event.target) {
+                const navItem = event.target.closest('.nav-item');
+                if (navItem) navItem.classList.add('active');
+            }
+
+            const element = document.getElementById(view);
+            if (element) {
+                element.classList.add('active');
+                if (view === 'dashboard' || view === 'calls') {
+                    updateStats();
+                    renderCalls();
+                }
+            }
+        }
+
+        // Search Listener
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function (e) {
+                const searchTerm = e.target.value.toLowerCase();
+                const rows = document.querySelectorAll('#callsTable tr');
+
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(searchTerm) ? '' : 'none';
+                });
+            });
+        }
+    </script>
+</body>
+
+</html>

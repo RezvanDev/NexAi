@@ -7,9 +7,11 @@ import { api, buildUrl } from "@shared/routes";
 
 export function useStartCall() {
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (data?: { leadId?: number }) => {
       const res = await fetch(api.calls.create.path, {
         method: api.calls.create.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data || {}),
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to start call");
@@ -47,5 +49,19 @@ export function useChat() {
       if (!res.ok) throw new Error("Chat failed");
       return api.calls.chat.responses[200].parse(await res.json());
     },
+  });
+}
+
+export function useCreateLead() {
+  return useMutation({
+    mutationFn: async (data: { name: string; phone: string; email?: string; companyId?: number }) => {
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to create lead");
+      return await res.json();
+    }
   });
 }

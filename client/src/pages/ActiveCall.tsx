@@ -8,15 +8,23 @@ import { useRealtime } from "@/hooks/use-realtime";
 
 interface ActiveCallProps {
   callId: number;
-  onEnd: () => void;
+  leadName: string;
+  onEnd: (data: { duration: number; transcript: string }) => void;
 }
 
-export default function ActiveCall({ callId, onEnd }: ActiveCallProps) {
+export default function ActiveCall({ callId, leadName, onEnd }: ActiveCallProps) {
   const [startTime] = useState(new Date());
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
 
-  const { connect, disconnect, isConnected, isSpeaking, isListening, transcript } = useRealtime(onEnd);
+  const handleEndWrapper = (passedTranscript?: string[]) => {
+    // Prefer passed transcript from hook (synchronous ref) over component state (async)
+    const transcriptToUse = passedTranscript || transcript;
+    const finalTranscript = transcriptToUse.join("\n").replace(/^AI: /gm, "AI: ").replace(/^You: /gm, "Client: ");
+    onEnd({ duration, transcript: finalTranscript });
+  };
+
+  const { connect, disconnect, isConnected, isSpeaking, isListening, transcript } = useRealtime(handleEndWrapper, leadName);
 
   // Connect on mount
   useEffect(() => {
@@ -24,9 +32,17 @@ export default function ActiveCall({ callId, onEnd }: ActiveCallProps) {
     return () => disconnect();
   }, [connect, disconnect]);
 
+  // Timer Effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDuration(differenceInSeconds(new Date(), startTime));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startTime]);
+
   const handleHangup = () => {
     disconnect();
-    onEnd();
+    handleEndWrapper();
   };
 
   const formatTime = (secs: number) => {
@@ -69,7 +85,7 @@ export default function ActiveCall({ callId, onEnd }: ActiveCallProps) {
           isListening={isListening}
         />
 
-        {/* Live Transcript Snippet */}
+        {/* Live Transcript Snippet - REMOVED per user request
         {transcript.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -81,6 +97,7 @@ export default function ActiveCall({ callId, onEnd }: ActiveCallProps) {
             </p>
           </motion.div>
         )}
+        */}
       </div>
 
       {/* Bottom Controls Area */}

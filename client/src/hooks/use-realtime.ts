@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { floatTo16BitPCM, arrayBufferToBase64, base64ToUint8Array } from "@/lib/audio";
 
-export function useRealtime(onCallEnd?: () => void) {
+export function useRealtime(onCallEnd?: (transcript?: string[]) => void, leadName?: string) {
     const [isConnected, setIsConnected] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false); // AI is speaking
     const [isListening, setIsListening] = useState(false); // User is speaking (VAD)
     const [transcript, setTranscript] = useState<string[]>([]);
+
+    // Transcript Ref for sync access
+    const transcriptRef = useRef<string[]>([]);
 
     const wsRef = useRef<WebSocket | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -18,8 +21,18 @@ export function useRealtime(onCallEnd?: () => void) {
     const shouldEndRef = useRef(false);
     const canStreamRef = useRef(false);
 
+    // Config Refs (to avoid stale closures in WS handlers)
+    const onCallEndRef = useRef(onCallEnd);
+    useEffect(() => {
+        onCallEndRef.current = onCallEnd;
+    }, [onCallEnd]);
+
     const connect = useCallback(async () => {
         if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+        // Reset transcript on new connection
+        transcriptRef.current = [];
+        setTranscript([]);
 
         // 1. Setup Audio Context (24kHz for OpenAI Realtime)
         const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
@@ -100,9 +113,21 @@ export function useRealtime(onCallEnd?: () => void) {
                     // Optional: realtime subtitles
                     break;
                 case "response.done":
-                    // console.log("Response Done:", JSON.stringify(data.response, null, 2));
-                    if (data.transcript) {
-                        setTranscript(prev => [...prev, `AI: ${data.transcript}`]);
+                    console.log("DEBUG response.done:", JSON.stringify(data, null, 2));
+                    // The structure is usually data.response.output[].content[].transcript or similar
+                    // But we were checking data.transcript which is likely wrong for this event type
+                    if (data.response?.output) {
+                        data.response.output.forEach((item: any) => {
+                            if (item.content) {
+                                item.content.forEach((content: any) => {
+                                    if (content.type === 'audio' && content.transcript) {
+                                        const text = `AI: ${content.transcript}`;
+                                        transcriptRef.current.push(text);
+                                        setTranscript(prev => [...prev, text]);
+                                    }
+                                });
+                            }
+                        });
                     }
                     break;
                 case "input_audio_buffer.speech_started":
@@ -114,7 +139,9 @@ export function useRealtime(onCallEnd?: () => void) {
                     break;
                 case "conversation.item.input_audio_transcription.completed":
                     if (data.transcript) {
-                        setTranscript(prev => [...prev, `You: ${data.transcript}`]);
+                        const text = `You: ${data.transcript}`;
+                        transcriptRef.current.push(text);
+                        setTranscript(prev => [...prev, text]);
                     }
                     break;
                 case "call.end.request": // Custom server event
@@ -124,7 +151,7 @@ export function useRealtime(onCallEnd?: () => void) {
                     // If immediate end needed (no audio playing)
                     if (!isPlayingRef.current && audioQueueRef.current.length === 0) {
                         console.log("No audio playing, ending immediately.");
-                        if (onCallEnd) onCallEnd();
+                        if (onCallEndRef.current) onCallEndRef.current(transcriptRef.current);
                     }
                     break;
             }
@@ -168,7 +195,7 @@ export function useRealtime(onCallEnd?: () => void) {
             setIsSpeaking(false);
             if (shouldEndRef.current) {
                 console.log("Audio queue drained. Ending call now.");
-                if (onCallEnd) onCallEnd();
+                if (onCallEndRef.current) onCallEndRef.current(transcriptRef.current);
             }
             return;
         }

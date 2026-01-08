@@ -2,19 +2,22 @@ import { WebSocket, WebSocketServer } from "ws";
 import { IncomingMessage } from "http";
 import { Server } from "http";
 import { log } from "./index";
+import { db } from "./db";
+import { companies } from "../shared/schema";
+import { eq } from "drizzle-orm";
 
 export function setupRealtime(server: Server) {
     const wss = new WebSocketServer({ noServer: true });
 
     server.on("upgrade", (request: IncomingMessage, socket, head) => {
-        if (request.url === "/realtime") {
+        if (request.url?.startsWith("/realtime")) {
             wss.handleUpgrade(request, socket, head, (ws) => {
                 wss.emit("connection", ws, request);
             });
         }
     });
 
-    wss.on("connection", (ws: WebSocket) => {
+    wss.on("connection", (ws: WebSocket, request: IncomingMessage) => {
         log("Client connected to /realtime", "websocket");
 
         const openai = new WebSocket(
@@ -27,60 +30,81 @@ export function setupRealtime(server: Server) {
             }
         );
 
-        const initializeSession = () => {
+        const initializeSession = async (req: IncomingMessage) => {
+            // Parse query params to get leadName
+            const url = new URL(req.url || "", `http://${req.headers.host}`);
+
+            // Fetch Company Settings (For now, default to ID 1)
+            // In a real multi-tenant app, we would get companyId from the URL or domain
+            const companyId = 1;
+            const company = await db.query.companies.findFirst({
+                where: eq(companies.id, companyId)
+            });
+
+            const agentName = company?.agentName || "AI Assistant";
+            const companyContext = company?.companyContext || "You are a helpful assistant.";
+            const agentRole = company?.agentRole || "Representative";
+            const agentGreeting = company?.agentGreeting || "Здравствуйте! Чем могу помочь?";
+            const agentTerminationPhrase = company?.agentTerminationPhrase || "Хорошо, менеджер свяжется с вами в ближайшее время. Всего доброго.";
+
+            console.log(`Client connected. Agent: ${agentName} (${agentRole})`);
+
+            const instructions = `You are ${agentName}, a ${agentRole} for "${company?.name || 'our company'}".
+    
+    YOUR KNOWLEDGE BASE / CONTEXT:
+    ${companyContext}
+    
+    - Be concise, friendly, and professional.
+    - If you don't know an answer, say you will check with a human specialist.
+    - If the user asks to speak to a manager, say "${agentTerminationPhrase}" and then IMMEDIATELY call the "endCall" tool.
+    - Speak Russian or English, depending on user preference, but start in Russian.
+    `;
+
             const sessionUpdate = {
                 type: "session.update",
                 session: {
+                    modalities: ["text", "audio"],
+                    instructions: instructions,
+                    voice: "alloy",
+                    input_audio_format: "pcm16",
+                    output_audio_format: "pcm16",
                     turn_detection: {
                         type: "server_vad",
-                        threshold: 0.6, // Higher threshold to reduce noise triggers
+                        threshold: 0.5,
                         prefix_padding_ms: 300,
                         silence_duration_ms: 500
                     },
-                    input_audio_format: "pcm16",
-                    output_audio_format: "pcm16",
-                    voice: "alloy",
-                    instructions: `You are an AI representative of "NexPride", a software development studio. 
-                    - Your goal is to answer client questions about services (web/mobile development, AI integration) and pricing.
-                    - Start the conversation with: "Вы позвонили в компанию NexPride, чем могу помочь?" (Say this immediately upon connection).
-                    - If the user asks for a price, say that pricing depends on the project scope but you can send a catalog or discuss details. mention that you have various packages.
-                    - If the user EXPLICITLY asks to speak to an operator, manager, or human:
-                        1. Say exactly: "Вам перезвонит менеджер, всего доброго."
-                        2. IMMEDIATELY call the "endCall" tool to hang up.
-                    - If the audio is unclear or empty, DO NOT say the manager line. Just ask the user to repeat.
-                    - Be professional, concise, and helpful. 
-                    - Speak Russian.`,
-                    modalities: ["text", "audio"],
-                    temperature: 0.7,
                     tools: [
                         {
                             type: "function",
                             name: "endCall",
-                            description: "Ends the call immediately. Use this AFTER saying the goodbye phrase when transferring to a manager.",
-                            parameters: { type: "object", properties: {} }
-                        }
+                            description: "Ends the current call. Use this when the user says goodbye, asks to end the call, or when you have finished handling their request (e.g. promised a manager callback).",
+                            parameters: {
+                                type: "object",
+                                properties: {},
+                            },
+                        },
                     ],
-                },
+                }
             };
-
-            console.log("Sending session update:", JSON.stringify(sessionUpdate));
-            openai.send(JSON.stringify(sessionUpdate));
 
             // Force the model to generate the first response (greeting) immediately
             const initialGreeting = {
                 type: "response.create",
                 response: {
                     modalities: ["text", "audio"],
-                    instructions: "Say the greeting: 'Вы позвонили в компанию NexPride, чем могу помочь?'",
+                    instructions: agentGreeting,
                 },
             };
+
+            openai.send(JSON.stringify(sessionUpdate));
             openai.send(JSON.stringify(initialGreeting));
         };
 
         // Relay: OpenAI -> Client
         openai.on("open", () => {
             log("Connected to OpenAI Realtime API", "openai");
-            initializeSession();
+            initializeSession(request);
         });
 
         openai.on("message", (data) => {
@@ -96,7 +120,6 @@ export function setupRealtime(server: Server) {
                     console.log("AI requested to end call. Sending termination signal...");
 
                     // Signal the client to hang up AFTER a delay to ensure audio plays
-                    // We use 'call.end.request' so client can finish playing audio queue
                     setTimeout(() => {
                         if (ws.readyState === WebSocket.OPEN) {
                             ws.send(JSON.stringify({ type: "call.end.request" }));
