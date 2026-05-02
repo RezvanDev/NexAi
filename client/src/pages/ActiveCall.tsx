@@ -1,10 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Mic, MicOff, AlertCircle } from "lucide-react";
+import { X, Mic, MicOff } from "lucide-react";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
-import { CallControls } from "@/components/CallControls";
 import { differenceInSeconds } from "date-fns";
-import { useRealtime } from "@/hooks/use-realtime";
+import { useLiveKitToken } from "@/hooks/use-livekit";
+import { useToast } from "@/hooks/use-toast";
+import {
+  LiveKitRoom,
+  RoomAudioRenderer,
+  useVoiceAssistant,
+  useLocalParticipant,
+  useRoomContext
+} from "@livekit/components-react";
+import { RoomEvent, type TranscriptionSegment, type Participant } from "livekit-client";
+import "@livekit/components-styles";
 
 interface ActiveCallProps {
   callId: number;
@@ -15,22 +24,18 @@ interface ActiveCallProps {
 export default function ActiveCall({ callId, leadName, onEnd }: ActiveCallProps) {
   const [startTime] = useState(new Date());
   const [duration, setDuration] = useState(0);
-  const [isMuted, setIsMuted] = useState(false);
+  const [transcriptText, setTranscriptText] = useState("");
+  const { token, fetchToken } = useLiveKitToken();
+  const { toast } = useToast();
+  const hasEndedRef = useRef(false);
 
-  const handleEndWrapper = (passedTranscript?: string[]) => {
-    // Prefer passed transcript from hook (synchronous ref) over component state (async)
-    const transcriptToUse = passedTranscript || transcript;
-    const finalTranscript = transcriptToUse.join("\n").replace(/^AI: /gm, "AI: ").replace(/^You: /gm, "Client: ");
-    onEnd({ duration, transcript: finalTranscript });
-  };
+  const roomName = useMemo(() => `call-${callId}`, [callId]);
+  const identity = useMemo(() => leadName || `user-${callId}`, [leadName, callId]);
 
-  const { connect, disconnect, isConnected, isSpeaking, isListening, transcript } = useRealtime(handleEndWrapper, leadName);
-
-  // Connect on mount
+  // Fetch token on mount
   useEffect(() => {
-    connect();
-    return () => disconnect();
-  }, [connect, disconnect]);
+    fetchToken(roomName, identity);
+  }, [fetchToken, roomName, identity]);
 
   // Timer Effect
   useEffect(() => {
@@ -41,9 +46,27 @@ export default function ActiveCall({ callId, leadName, onEnd }: ActiveCallProps)
   }, [startTime]);
 
   const handleHangup = () => {
-    disconnect();
-    handleEndWrapper();
+    if (hasEndedRef.current) return;
+    hasEndedRef.current = true;
+    onEnd({ duration, transcript: transcriptText || "Звонок завершен. Данных нет." });
   };
+
+  // Max duration effect
+  useEffect(() => {
+    if (duration >= 100 && !hasEndedRef.current) {
+      hasEndedRef.current = true;
+      toast({
+        title: "Время звонка вышло ⏱",
+        description: "Спасибо за обращение, менеджер скоро свяжется с вами!",
+        duration: 5000,
+      });
+      
+      // Give them a moment to read the toast before hanging up
+      setTimeout(() => {
+        onEnd({ duration, transcript: transcriptText || "Звонок завершен по лимиту времени." });
+      }, 3000);
+    }
+  }, [duration, toast, onEnd, transcriptText]);
 
   const formatTime = (secs: number) => {
     const mins = Math.floor(secs / 60);
@@ -51,9 +74,93 @@ export default function ActiveCall({ callId, leadName, onEnd }: ActiveCallProps)
     return `${mins}:${remainingSecs.toString().padStart(2, '0')}`;
   };
 
-  return (
-    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-between p-6 relative overflow-hidden">
+  if (!token) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+         <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary" />
+            <span className="text-white/60">Инициализация соединения...</span>
+         </div>
+      </div>
+    );
+  }
 
+  return (
+    <LiveKitRoom
+      serverUrl={import.meta.env.VITE_LIVEKIT_URL || "wss://your-livekit-url.livekit.cloud"}
+      token={token}
+      connect={true}
+      audio={true}
+      video={false}
+      onDisconnected={handleHangup}
+      className="min-h-screen bg-[#050505] flex flex-col items-center justify-between p-6 relative overflow-hidden"
+    >
+      <CallContent 
+        duration={duration} 
+        formatTime={formatTime} 
+        handleHangup={handleHangup}
+        setTranscriptText={setTranscriptText}
+      />
+      <RoomAudioRenderer />
+    </LiveKitRoom>
+  );
+}
+
+function CallContent({ duration, formatTime, handleHangup, setTranscriptText }: any) {
+  const { state } = useVoiceAssistant();
+  const { isMicrophoneEnabled, localParticipant } = useLocalParticipant();
+  const room = useRoomContext();
+  
+  const isSpeaking = state === "speaking";
+  const isListening = state === "listening";
+
+  const [messages, setMessages] = useState<{id: string, name: string, text: string, isFinal: boolean}[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!room) return;
+
+    const handleTranscription = (segments: TranscriptionSegment[], participant?: Participant) => {
+      setMessages(prev => {
+        const newMessages = [...prev];
+        for (const segment of segments) {
+          const index = newMessages.findIndex(m => m.id === segment.id);
+          const name = participant?.identity === room.localParticipant.identity ? "Вы" : "AI";
+          if (index >= 0) {
+            newMessages[index] = { ...newMessages[index], text: segment.text, isFinal: segment.final };
+          } else {
+            newMessages.push({ id: segment.id, name, text: segment.text, isFinal: segment.final });
+          }
+        }
+        return newMessages;
+      });
+    };
+
+    room.on(RoomEvent.TranscriptionReceived, handleTranscription);
+    return () => {
+      room.off(RoomEvent.TranscriptionReceived, handleTranscription);
+    };
+  }, [room]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+    const finalTranscript = messages
+      .filter(m => m.isFinal)
+      .map(m => `${m.name}: ${m.text}`)
+      .join("\n");
+    setTranscriptText(finalTranscript);
+  }, [messages, setTranscriptText]);
+
+  const toggleMic = async () => {
+    if (localParticipant) {
+      await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
+    }
+  };
+
+  return (
+    <>
       {/* Background Gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
 
@@ -64,15 +171,15 @@ export default function ActiveCall({ callId, leadName, onEnd }: ActiveCallProps)
         className="relative z-10 w-full max-w-md flex justify-between items-start"
       >
         <div className="flex flex-col">
-          <h3 className="text-white/60 text-sm font-medium tracking-wide">AI АГЕНТ</h3>
-          <span className="text-white text-2xl font-display font-semibold">Голосовой Агент</span>
+          <h3 className="text-white/60 text-sm font-medium tracking-wide">AI АГЕНТ (WebRTC)</h3>
+          <span className="text-white text-2xl font-display font-semibold">Голосовой Ассистент</span>
           <span className="text-primary/80 font-mono mt-1">{formatTime(duration)}</span>
         </div>
 
-        {!isConnected && (
+        {state === "connecting" && (
           <div className="flex items-center gap-2 text-yellow-500 bg-yellow-500/10 px-3 py-1 rounded-full">
             <span className="animate-pulse w-2 h-2 rounded-full bg-current" />
-            <span className="text-xs">Подключение...</span>
+            <span className="text-xs">Соединение...</span>
           </div>
         )}
       </motion.div>
@@ -80,24 +187,31 @@ export default function ActiveCall({ callId, leadName, onEnd }: ActiveCallProps)
       {/* Main Visualizer */}
       <div className="flex-1 flex flex-col items-center justify-center w-full relative">
         <VoiceVisualizer
-          isActive={isConnected}
+          isActive={true}
           isSpeaking={isSpeaking}
           isListening={isListening}
         />
+      </div>
 
-        {/* Live Transcript Snippet - REMOVED per user request
-        {transcript.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="absolute bottom-10 left-0 right-0 mx-auto max-w-sm text-center px-4"
-          >
-            <p className="text-white/70 text-lg font-medium leading-relaxed glass-panel p-4 rounded-xl border-none bg-black/20">
-              "{transcript[transcript.length - 1].replace(/^(You|AI): /, '')}"
-            </p>
-          </motion.div>
+      {/* Subtitles Area */}
+      <div 
+        ref={scrollRef}
+        className="w-full max-w-md h-40 overflow-y-auto mb-4 space-y-3 px-4 pb-4 custom-scrollbar"
+        style={{ WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)' }}
+      >
+        {messages.map(m => (
+          <div key={m.id} className={`flex flex-col ${m.name === "Вы" ? "items-end" : "items-start"}`}>
+             <span className="text-xs text-white/40 mb-1">{m.name}</span>
+             <p className={`text-sm p-3 rounded-2xl max-w-[85%] ${m.name === "Вы" ? "bg-primary/20 text-white rounded-br-none" : "bg-white/10 text-white/90 rounded-bl-none"} ${!m.isFinal && "opacity-70 italic"}`}>
+               {m.text}
+             </p>
+          </div>
+        ))}
+        {messages.length === 0 && (
+          <div className="h-full flex items-center justify-center text-white/30 text-sm italic pt-10">
+            Ожидание речи...
+          </div>
         )}
-        */}
       </div>
 
       {/* Bottom Controls Area */}
@@ -106,24 +220,23 @@ export default function ActiveCall({ callId, leadName, onEnd }: ActiveCallProps)
         animate={{ y: 0, opacity: 1 }}
         className="w-full max-w-md space-y-6 relative z-20"
       >
-        {/* Controls */}
-        <div className="flex justify-center gap-4">
-          {/* Simplified Controls for Realtime */}
+        <div className="flex justify-center gap-6">
           <button
-            onClick={() => setIsMuted(!isMuted)}
-            className={`p-4 rounded-full transition-all ${isMuted ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-white hover:bg-white/20'}`}
+            onClick={toggleMic}
+            className={`p-5 rounded-full transition-all shadow-xl ${!isMicrophoneEnabled ? 'bg-red-500 text-white animate-pulse' : 'bg-white/10 text-white hover:bg-white/20'}`}
+            title={isMicrophoneEnabled ? "Выключить микрофон" : "Включить микрофон"}
           >
-            {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+            {!isMicrophoneEnabled ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
           </button>
 
           <button
             onClick={handleHangup}
-            className="p-4 rounded-full bg-red-500 text-white hover:bg-red-600 transition-all shadow-lg shadow-red-500/30"
+            className="p-5 rounded-full bg-red-600 text-white hover:bg-red-700 transition-all shadow-2xl shadow-red-600/40"
           >
             <X className="w-8 h-8" />
           </button>
         </div>
       </motion.div>
-    </div>
+    </>
   );
 }

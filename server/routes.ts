@@ -4,11 +4,17 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import { db } from "./db";
+import { companies, calls, leads } from "../shared/schema";
+import { eq, sql } from "drizzle-orm";
 import { registerChatRoutes } from "./replit_integrations/chat";
 import { registerImageRoutes } from "./replit_integrations/image";
 import OpenAI from "openai";
 import { setupRealtime } from "./realtime";
 import { registerCRMRoutes } from "../crm/server/routes";
+import { generateToken } from "./livekit";
+import { AgentDispatchClient } from "livekit-server-sdk";
+import { sendTelegramNotification } from "./telegram";
 
 // Initialize OpenAI client for chat fallback
 const openai = new OpenAI({
@@ -25,49 +31,70 @@ export async function registerRoutes(
   registerCRMRoutes(app);
   setupRealtime(httpServer);
 
+  // === LIVEKIT ===
+  app.get("/api/livekit-token", async (req, res) => {
+    try {
+      const room = (req.query.room as string) || "default-room";
+      const identity = (req.query.identity as string) || `user-${Math.floor(Math.random() * 10000)}`;
+      const token = await generateToken(room, identity);
+
+      // --- NEW: Trigger Agent to join this room ---
+      try {
+        const svc = new AgentDispatchClient(
+          process.env.LIVEKIT_URL!,
+          process.env.LIVEKIT_API_KEY!,
+          process.env.LIVEKIT_API_SECRET!
+        );
+        
+        // This tells LiveKit Cloud to send our 'voice-assistant' agent to this room
+        await svc.createDispatch(room, "voice-assistant", {
+          metadata: JSON.stringify({ leadName: identity })
+        });
+        console.log(`[LiveKit] Dispatched agent to room: ${room}`);
+      } catch (dispatchError) {
+        // We log it but don't fail the token request (the user can still join)
+        console.error("[LiveKit] Failed to dispatch agent:", dispatchError);
+      }
+      // --------------------------------------------
+
+      res.json({ token });
+    } catch (error: any) {
+      console.error("Failed to generate LiveKit token:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // === LEADS ===
   app.post("/api/leads", async (req, res) => {
     try {
+      const companyId = req.body.companyId || 1;
+
+      // Check limits
+      const [company] = await db.select().from(companies).where(eq(companies.id, companyId));
+      if (!company) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+
+      if (company.limitMinutes) {
+        const results = await db.select({
+            totalDuration: sql<number>`sum(${calls.duration})`
+        })
+        .from(calls)
+        .innerJoin(leads, eq(calls.leadId, leads.id))
+        .where(eq(leads.companyId, companyId));
+
+        const usedMinutes = Math.ceil((Number(results[0]?.totalDuration) || 0) / 60);
+        
+        if (usedMinutes >= company.limitMinutes) {
+            return res.status(403).json({ message: "Извините, сервис временно недоступен. Менеджер свяжется с вами позже." });
+        }
+      }
+
       const lead = await storage.createLead(req.body);
       res.status(201).json(lead);
     } catch (error) {
       console.error("Failed to create lead:", error);
       res.status(500).json({ message: "Failed to create lead" });
-    }
-  });
-
-  // === COMPANIES ===
-  app.post("/api/companies", async (req, res) => {
-    try {
-      const company = await storage.createCompany(req.body);
-      res.status(201).json(company);
-    } catch (error) {
-      console.error("Failed to create company:", error);
-      res.status(500).json({ message: "Failed to create company" });
-    }
-  });
-
-  app.get("/api/companies/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const company = await storage.getCompany(id);
-      if (!company) return res.status(404).json({ message: "Company not found" });
-      res.json(company);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch company" });
-    }
-  });
-
-  app.patch("/api/companies/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      console.log(`[PATCH] Updating company ${id}. Payload:`, JSON.stringify(req.body, null, 2));
-      const company = await storage.updateCompany(id, req.body);
-      console.log(`[PATCH] Updated company result:`, JSON.stringify(company, null, 2));
-      res.json(company);
-    } catch (error) {
-      console.error("Failed to update company:", error);
-      res.status(500).json({ message: "Failed to update company" });
     }
   });
 
@@ -113,6 +140,21 @@ export async function registerRoutes(
       }
 
       const call = await storage.endCall(callId, input.duration, input.transcript, summary);
+
+      // --- Trigger Telegram Notification ---
+      try {
+        const lead = await storage.getLead(call.leadId);
+        if (lead && lead.companyId) {
+            const company = await storage.getCompany(lead.companyId);
+            if (company) {
+                // Do not await, fire and forget so it doesn't block response
+                sendTelegramNotification(company, lead, call, input.transcript || "", summary);
+            }
+        }
+      } catch (notifyErr) {
+        console.error("Failed to trigger telegram notification:", notifyErr);
+      }
+
       res.json(call);
     } catch (error) {
       if (error instanceof z.ZodError) {

@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { calls, leads, companies, type InsertCall, type Call, type InsertLead, type Lead, type InsertCompany, type Company } from "@shared/schema";
+import { calls, leads, companies, users, type InsertCall, type Call, type InsertLead, type Lead, type InsertCompany, type Company, type User, type InsertUser } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { chatStorage, type IChatStorage } from "./replit_integrations/chat/storage";
 
@@ -17,6 +17,11 @@ export interface IStorage extends IChatStorage {
   createCompany(company: InsertCompany): Promise<Company>;
   getCompany(id: number): Promise<Company | undefined>;
   updateCompany(id: number, company: Partial<InsertCompany>): Promise<Company>;
+
+  // Users
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -83,6 +88,22 @@ export class DatabaseStorage implements IStorage {
       .where(eq(companies.id, id))
       .returning();
     return updated;
+  }
+
+  // Users
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
   }
 }
 

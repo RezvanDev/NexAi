@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, History, MoreVertical, Sparkles } from "lucide-react";
 import { useStartCall, useCreateLead, useEndCall } from "@/hooks/use-calls";
+import { useToast } from "@/hooks/use-toast";
 import ActiveCall from "./ActiveCall";
 import { LeadForm } from "@/components/LeadForm";
 
@@ -17,22 +18,36 @@ export default function Home() {
   const endCallMutation = useEndCall();
   const [, setLocation] = useLocation();
 
+  const { toast } = useToast();
+
   const handleLeadSubmit = async (data: { name: string; phone: string }) => {
     try {
       setLeadName(data.name);
-      // 1. Create Lead
-      const lead = await createLeadMutation.mutateAsync({ ...data });
+
+      // Extract companyId from URL
+      const searchParams = new URLSearchParams(window.location.search);
+      const companyId = searchParams.get('companyId') ? parseInt(searchParams.get('companyId')!) : null;
+
+      // 1. Create Lead (with companyId)
+      const lead = await createLeadMutation.mutateAsync({ 
+        ...data,
+        companyId: companyId 
+      });
 
       // 2. Start Call (pass leadId)
-      // Note: useStartCall needs to be updated to accept leadId if we want to link it correctly!
-      // But for now, let's assume loose coupling or update useStartCall later.
-      // Wait, endpoint is POST /api/calls. Let's send leadId.
       const call = await startCallMutation.mutateAsync({ leadId: lead.id });
       setCallId(call.id);
       setIsInCall(true);
       setShowLeadForm(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to start sequence", error);
+      
+      const errorMessage = error?.message || "Не удалось начать звонок";
+      toast({
+        title: "Ожидание оператора",
+        description: errorMessage.includes("временно недоступен") ? errorMessage : "К сожалению, сейчас все линии заняты. Попробуйте позже.",
+        variant: "destructive"
+      });
     }
   };
 

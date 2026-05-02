@@ -10,6 +10,7 @@ interface LeadFormProps {
 export function LeadForm({ onSubmit, isSubmitting = false }: LeadFormProps) {
     const [name, setName] = useState("");
     const [phone, setPhone] = useState("");
+    const [isAgreed, setIsAgreed] = useState(false);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -50,9 +51,22 @@ export function LeadForm({ onSubmit, isSubmitting = false }: LeadFormProps) {
                 />
             </div>
 
+            <div className="flex items-start gap-3 mt-4 mb-2">
+                <input
+                    type="checkbox"
+                    id="consent"
+                    checked={isAgreed}
+                    onChange={(e) => setIsAgreed(e.target.checked)}
+                    className="mt-1 w-4 h-4 rounded border-white/20 bg-black/20 text-primary focus:ring-primary/50"
+                />
+                <label htmlFor="consent" className="text-xs text-white/50 leading-relaxed cursor-pointer">
+                    Нажимая кнопку, вы даете согласие на обработку персональных данных и аудиозапись разговора согласно <a href="/privacy-policy" target="_blank" className="text-primary/70 hover:text-primary underline">Политике конфиденциальности</a>.
+                </label>
+            </div>
+
             <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !isAgreed}
                 className="w-full py-4 rounded-xl bg-gradient-to-r from-primary to-accent font-semibold text-white shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {isSubmitting ? "Отправка..." : "Начать Звонок"} {isSubmitting ? null : <ArrowRight className="w-4 h-4" />}
