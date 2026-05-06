@@ -88,7 +88,9 @@
     "wouter": "^3.3.5",
     "ws": "^8.18.3",
     "zod": "^3.25.76",
-    "zod-validation-error": "^3.5.4"
+    "zod-validation-error": "^3.5.4",
+    "bufferutil": "^4.1.0",
+    "utf-8-validate": "^6.0.6"
   },
   "devDependencies": {
     "@replit/vite-plugin-cartographer": "^0.4.4",
@@ -119,8 +121,5 @@
     "drizzle-kit": {
       "@esbuild-kit/esm-loader": "npm:tsx@^4.20.4"
     }
-  },
-  "optionalDependencies": {
-    "bufferutil": "^4.0.8"
   }
 }
