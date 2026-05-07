@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 
 export function useLiveKitToken() {
   const [token, setToken] = useState<string | null>(null);
+  const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
 
   const fetchToken = useCallback(async (room: string, identity: string) => {
@@ -10,6 +11,7 @@ export function useLiveKitToken() {
       const response = await fetch(`/api/livekit-token?room=${room}&identity=${identity}`);
       const data = await response.json();
       setToken(data.token);
+      setServerUrl(data.serverUrl);
     } catch (error) {
       console.error("Failed to fetch LiveKit token:", error);
     } finally {
@@ -17,5 +19,5 @@ export function useLiveKitToken() {
     }
   }, []);
 
-  return { token, fetchToken, isFetching };
+  return { token, serverUrl, fetchToken, isFetching };
 }

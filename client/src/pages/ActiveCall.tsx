@@ -25,7 +25,7 @@ export default function ActiveCall({ callId, leadName, onEnd }: ActiveCallProps)
   const [startTime] = useState(new Date());
   const [duration, setDuration] = useState(0);
   const [transcriptText, setTranscriptText] = useState("");
-  const { token, fetchToken } = useLiveKitToken();
+  const { token, serverUrl, fetchToken } = useLiveKitToken();
   const { toast } = useToast();
   const hasEndedRef = useRef(false);
 
@@ -74,7 +74,7 @@ export default function ActiveCall({ callId, leadName, onEnd }: ActiveCallProps)
     return `${mins}:${remainingSecs.toString().padStart(2, '0')}`;
   };
 
-  if (!token) {
+  if (!token || !serverUrl) {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center">
          <div className="flex flex-col items-center gap-4">
@@ -87,7 +87,7 @@ export default function ActiveCall({ callId, leadName, onEnd }: ActiveCallProps)
 
   return (
     <LiveKitRoom
-      serverUrl={import.meta.env.VITE_LIVEKIT_URL || "wss://your-livekit-url.livekit.cloud"}
+      serverUrl={serverUrl}
       token={token}
       connect={true}
       audio={true}

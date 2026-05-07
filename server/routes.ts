@@ -57,7 +57,10 @@ export async function registerRoutes(
       }
       // --------------------------------------------
 
-      res.json({ token });
+      res.json({ 
+        token,
+        serverUrl: process.env.LIVEKIT_URL 
+      });
     } catch (error: any) {
       console.error("Failed to generate LiveKit token:", error);
       res.status(500).json({ message: error.message });
