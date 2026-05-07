@@ -21,7 +21,7 @@ export function setupRealtime(server: Server) {
         log("Client connected to /realtime", "websocket");
 
         const openai = new WebSocket(
-            "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17",
+            "wss://api.openai.com/v1/realtime?model=gpt-4o-mini-realtime-preview-2024-12-17",
             {
                 headers: {
                     Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
