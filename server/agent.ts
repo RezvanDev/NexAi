@@ -84,7 +84,7 @@ export default defineAgent({
     const agent = new voice.Agent({
       instructions,
       llm: new realtime.RealtimeModel({
-        model: 'gpt-4o-mini-realtime-preview-2024-12-17',
+        model: 'gpt-realtime-mini',
         voice: agentVoice
       }),
     });
